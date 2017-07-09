@@ -1,4 +1,4 @@
-/* 
+/*
  * File: network.c
  * Author: Alex Brodsky
  * Purpose: This file contains the network module to accept web connections.
@@ -32,109 +32,122 @@ static int serv_sock = -1;
  * Parameters: None
  * Returns: None
  */
-extern void network_wait() {
-  int n;                                                /* result var */
-  fd_set sel;                                           /* descriptor bits */
-  fd_set err;
-  
-  if( serv_sock < 0 ) {                                 /* sanity check */
-    perror( "Error, network not initalized" );
-    abort();
-  }
+extern void network_wait()
+{
+    int n;                                                /* result var */
+    fd_set sel;                                           /* descriptor bits */
+    fd_set err;
 
-  FD_ZERO( &sel );                                      /* initialize bits */
-  FD_ZERO( &err );
-  FD_SET( serv_sock, &sel );
-  FD_SET( serv_sock, &err );
+    if ( serv_sock < 0 )                                  /* sanity check */
+    {
+        perror( "Error, network not initalized" );
+        abort();
+    }
 
-  n = select( serv_sock + 1, &sel, NULL, &err, NULL );  /* wait for conn. */
+    FD_ZERO( &sel );                                      /* initialize bits */
+    FD_ZERO( &err );
+    FD_SET( serv_sock, &sel );
+    FD_SET( serv_sock, &err );
 
-  if( ( n <= 0 ) || FD_ISSET( serv_sock, &err ) ) {     /* check for errors */
-    perror( "Error occurred while waiting" );
-    abort();
-  } 
+    n = select( serv_sock + 1, &sel, NULL, &err, NULL );  /* wait for conn. */
+
+    if ( ( n <= 0 ) || FD_ISSET( serv_sock, &err ) )      /* check for errors */
+    {
+        perror( "Error occurred while waiting" );
+        abort();
+    }
 }
 
 
 /* This function checks if there are any web clients waiting to connect.
  *    If one or more clients are waiting to connect, this function opens
  *    a connection to the next client waiting to connect, and returns an
- *    integer file descriptor for the connection.  If no clients are 
+ *    integer file descriptor for the connection.  If no clients are
  *    waiting, this function returns -1.
  * Parameters: None
  * Returns: A positive integer file decriptor to the next clients connection,
  *          or -1 if no client is waiting.
  */
-extern int network_open() {
-  struct sockaddr_in server;                            /* addr of client */
-  int len = sizeof( server );                           /* length of addr */
-  int n;                                                /* return var */
-  int sock = -1;                                        /* socket for client */
-  fd_set sel;                                           /* descriptor bits */
-  fd_set err;
-  struct timeval tv;                                    /* time to wait */
-  
-  if( serv_sock < 0 ) {                                 /* sanity check */
-    perror( "Error, network not initalized" );
-    abort();
-  }
+extern int network_open()
+{
+    struct sockaddr_in server;                            /* addr of client */
+    int len = sizeof( server );                           /* length of addr */
+    int n;                                                /* return var */
+    int sock = -1;                                        /* socket for client */
+    fd_set sel;                                           /* descriptor bits */
+    fd_set err;
+    struct timeval tv;                                    /* time to wait */
 
-  FD_ZERO( &sel );                                      /* check for client */
-  FD_ZERO( &err );
-  FD_SET( serv_sock, &sel );
-  FD_SET( serv_sock, &err );
-  memset( &tv, 0, sizeof( tv ) );
-  n = select( serv_sock + 1, &sel, NULL, &err, &tv );
-
-  if( ( n < 0 ) || FD_ISSET( serv_sock, &err ) ) {      /* check for errors */
-    perror( "Error occurred on select()" );
-    abort();
-  } else if( ( n > 0 ) && FD_ISSET( serv_sock, &sel ) ) { /* client is waiting*/
-    /* get client connection */
-    sock = accept( serv_sock, (struct sockaddr *)&server, (socklen_t *)&len );
-
-    if( sock < 0 ) {                                    /* check for errors */
-      perror( "Error occurred on select()" );
+    if ( serv_sock < 0 )                                  /* sanity check */
+    {
+        perror( "Error, network not initalized" );
+        abort();
     }
-  }
-  return sock;                                          /* return client conn.*/
+
+    FD_ZERO( &sel );                                      /* check for client */
+    FD_ZERO( &err );
+    FD_SET( serv_sock, &sel );
+    FD_SET( serv_sock, &err );
+    memset( &tv, 0, sizeof( tv ) );
+    n = select( serv_sock + 1, &sel, NULL, &err, &tv );
+
+    if ( ( n < 0 ) || FD_ISSET( serv_sock, &err ) )       /* check for errors */
+    {
+        perror( "Error occurred on select()" );
+        abort();
+    }
+    else if ( ( n > 0 ) && FD_ISSET( serv_sock, &sel ) )    /* client is waiting*/
+    {
+        /* get client connection */
+        sock = accept( serv_sock, (struct sockaddr *)&server, (socklen_t *)&len );
+
+        if ( sock < 0 )                                     /* check for errors */
+        {
+            perror( "Error occurred on select()" );
+        }
+    }
+    return sock;                                          /* return client conn.*/
 }
 
 
 /* This function initializes the network module and creates a server socket
  *   bound to a specified port.  This function will abort the program if an
  *   error occurs.
- * Parameters: 
+ * Parameters:
  *             port : the port on which the server should listen.  Should be
  *                    between 1024 and 65525
  * Returns: None
  */
-extern void network_init( int port ) {
-  struct sockaddr_in self;                             /* socket address */
-  int yes = 1;                                         /* config variable */
-  
-  serv_sock = socket( PF_INET, SOCK_STREAM, 0 );       /* create socket */
-  if( serv_sock < 0 ) {
-    perror( "Error while creating server socket" );
-    abort();
-  } 
+extern void network_init( int port )
+{
+    struct sockaddr_in self;                             /* socket address */
+    int yes = 1;                                         /* config variable */
 
-                                                       /* configure socket */
-  setsockopt( serv_sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof( int ) );
-  setsockopt( serv_sock, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof( int ) );
+    serv_sock = socket( PF_INET, SOCK_STREAM, 0 );       /* create socket */
+    if ( serv_sock < 0 )
+    {
+        perror( "Error while creating server socket" );
+        abort();
+    }
 
-  self.sin_family = AF_INET;                           /* bind socket to port */
-  self.sin_addr.s_addr = htonl( INADDR_ANY );
-  self.sin_port = htons( port );
-  if( bind( serv_sock, (struct sockaddr *)&self, sizeof( self ) ) )  {
-    perror( "Error on bind()" );
-    abort();
-  }
+    /* configure socket */
+    setsockopt( serv_sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof( int ) );
+    setsockopt( serv_sock, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof( int ) );
 
-  if( listen( serv_sock, 64 ) ) {                      /* allow connections */
-    perror( "Error on listen()" );
-    abort();
-  }
+    self.sin_family = AF_INET;                           /* bind socket to port */
+    self.sin_addr.s_addr = htonl( INADDR_ANY );
+    self.sin_port = htons( port );
+    if ( bind( serv_sock, (struct sockaddr *)&self, sizeof( self ) ) )
+    {
+        perror( "Error on bind()" );
+        abort();
+    }
+
+    if ( listen( serv_sock, 64 ) )                       /* allow connections */
+    {
+        perror( "Error on listen()" );
+        abort();
+    }
 }
 
 

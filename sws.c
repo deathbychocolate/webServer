@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "network.h"
+#include "heap.h"
 
 #define MAX_HTTP_SIZE 8192                 /* size of buffer to allocate */
 #define DEFAULT_HEAP_SIZE 1024

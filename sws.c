@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <pthread.h>
 #include "network.h"
 
 #define MAX_HTTP_SIZE 8192                 /* size of buffer to allocate */
-
+#define DEFAULT_HEAP_SIZE 1024
 
 /* This function takes a file handle to a client, reads in the request,
  *    parses the request, and sends back the requested file.  If the
@@ -25,14 +25,18 @@
  *             fd : the file descriptor to the client connection
  * Returns: None
  */
+pthread_mutex_t mutex;
+
 static void serve_client( int fd )
 {
+    //pthread_mutex_lock(&mutex);
     static char *buffer;                              /* request buffer */
     char *req = NULL;                                 /* ptr to req file */
     char *brk;                                        /* state used by strtok */
     char *tmp;                                        /* error checking ptr */
     FILE *fin;                                        /* input file handle */
     int len;                                          /* length of data read */
+    long int fileSize;
 
     if ( !buffer )                                    /* 1st time, alloc buffer */
     {
@@ -69,7 +73,12 @@ static void serve_client( int fd )
     else                                              /* if so, open file */
     {
         req++;                                          /* skip leading / */
-        fin = fopen( req, "r" );                        /* open file */
+        fin = fopen( req, "r" );
+        fseek(fin, 0, SEEK_END);
+        fileSize = ftell(fin);
+        fseek(f, 0, SEEK_SET);
+        printf("The file size is: %d bytes", fileSize);
+                                /* open file */
         if ( !fin )                                     /* check if successful */
         {
             len = sprintf( buffer, "HTTP/1.1 404 File not found\n\n" );

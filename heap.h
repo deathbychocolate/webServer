@@ -10,6 +10,7 @@ typedef struct fileInfo
     int numRuns; //this will be needed for the mfq
 } fileInfo;
 
+// heap structure
 typedef struct heap
 {
     struct fileInfo *heap;

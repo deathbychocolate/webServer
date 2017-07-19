@@ -16,8 +16,7 @@
 #include "heap.h"
 #include "sws.h"
 
-#define MAX_HTTP_SIZE 8192                      /* size of buffer to allocate */
-#define DEFAULT_HEAP_SIZE 1024
+//#define DEFAULT_HEAP_SIZE 1024
 
 /* This function takes a file handle to a client, reads in the request,
  *    parses the request, and sends back the requested file.  If the
@@ -28,6 +27,9 @@
  * Returns: None
  */
 
+void admit_request(struct RCB *request);
+void admit_scheduler(struct RCB *req);
+
 pthread_mutex_t mutex;
 int sequence_number;
 enum scheduler_type s_type;
@@ -35,26 +37,30 @@ enum scheduler_type s_type;
 static void serve_client( int fd )
 {
     //pthread_mutex_lock(&mutex);
-    static char *buffer;                              /* request buffer       */
-    char *req = NULL;                                 /* ptr to req file      */
-    char *brk;                                        /* state used by strtok */
-    char *tmp;                                        /* error checking ptr   */
-    FILE *fin;                                        /* input file handle    */
-    int len;                                          /* length of data read  */
-    long int fileSize;
-
-    if ( !buffer )                                    /* 1st time, alloc buffer */
+    static char *buffer;                            /* Request buffer         */
+    char *req = NULL;                               /* ptr to req file        */
+    char *brk;                                      /* state used by strtok   */
+    char *tmp;                                      /* error checking ptr     */
+    FILE *fin;                                      /* input file handle      */
+    int len;                                        /* length of data read    */
+    long int fileSize;                              /* Size of requested file */
+    struct RCB *request;                            /* Request control block  */
+    
+    /* 1st time, alloc buffer */
+    if ( !buffer )
     {
         buffer = malloc( MAX_HTTP_SIZE );
-        if ( !buffer )                                  /* error check */
+        /* error check */
+        if ( !buffer )
         {
             perror( "Error while allocating memory" );
             abort();
         }
     }
-
+    
+    
     memset( buffer, 0, MAX_HTTP_SIZE );
-    if ( read( fd, buffer, MAX_HTTP_SIZE ) <= 0 )     /* read req from client */
+    if ( read( fd, buffer, MAX_HTTP_SIZE ) <= 0 )    /* read req from client  */
     {
         perror( "Error while reading request" );
         abort();
@@ -83,7 +89,7 @@ static void serve_client( int fd )
         fileSize = ftell(fin);
         fseek(fin, 0, SEEK_SET);
         printf("The file size is: %ld bytes", fileSize);
-                                /* open file */
+        /* open file */
         if ( !fin )                                    /* check if successful */
         {
             len = sprintf( buffer, "HTTP/1.1 404 File not found\n\n" );
@@ -93,33 +99,44 @@ static void serve_client( int fd )
         {
             len = sprintf( buffer, "HTTP/1.1 200 OK\n\n" );/* send success code */
             write( fd, buffer, len );
-
-            do                                            /* loop, read & send file */
-            {
-                len = fread( buffer, 1, MAX_HTTP_SIZE, fin );  /* read file chunk */
-                if ( len < 0 )                              /* check for errors */
-                {
-                    perror( "Error while writing to client" );
-                }
-                else if ( len > 0 )                         /* if none, send chunk */
-                {
-                    len = write( fd, buffer, len );
-                    if ( len < 1 )                            /* check for errors */
-                    {
-                        perror( "Error while writing to client" );
-                    }
-                }
-            }
-            while ( len == MAX_HTTP_SIZE );               /* the last chunk < 8192 */
-            fclose( fin );
+            request = malloc(sizeof(struct RCB));
+            request->fd = fd;
+            request->fptr = fin;
+            request->remainbytes = fileSize;
+            request->seq = sequence_number++;
+            admit_scheduler(request);
+            
         }
     }
-    close( fd );                                     /* close client connection*/
+    close( fd );                                    /* close client connection*/
 }
 
-void admit_request()
+void process_request(struct RCB *req)
 {
-    
+    int len;
+    static char *buffer;                            /* Request buffer         */
+    if (!req)
+        return;
+    do                                            /* loop, read & send file */
+    {
+        len = fread( buffer, 1, MAX_HTTP_SIZE, req->fptr );  /* read file chunk */
+        if ( len < 0 )                              /* check for errors */
+        {
+            perror( "Error while writing to client" );
+        }
+        else if ( len > 0 )                         /* if none, send chunk */
+        {
+          //  len = write( fd, buffer, len );
+           // if ( len < 1 )                            /* check for errors */
+//            {
+  //              perror( "Error while writing to client" );
+    //        }
+      //  }
+//    }
+        }
+  //  while ( len == MAX_HTTP_SIZE );               /* the last chunk < 8192 */
+    //fclose( fin );
+    }while(1);
 }
 
 /* Check the scheduler type specified by user */
@@ -138,21 +155,7 @@ enum scheduler_type scheduler_init(char *scheduler)
         return BAD_SCHEDULER;
 }
 
-void admit_scheduler(struct RCB req)
-{
-    switch (s_type)
-    {
-        case RR:
-            break;
-        case SJF:
-            break;
-        case MLFQ:
-            break;
-        case BAD_SCHEDULER:
-        default:
-            break;
-    }
-}
+
 
 /* This function is where the program starts running.
  *    The function first parses its command line parameters to determine port #
@@ -192,6 +195,7 @@ int main( int argc, char **argv )
         printf( "Unsupported Scheduler\n" );
         return 0;
     }
+    
     sequence_number = 1;
     network_init( port );                             /* init network module */
 
@@ -200,7 +204,7 @@ int main( int argc, char **argv )
         network_wait();                                 /* wait for clients */
 
         /* Admit to scheduler */
-        for ( fd = network_open(); fd >= 0; fd = network_open() )  /* get clients */
+        for ( fd = network_open(); fd >= 0; fd = network_open() ) /* get clients */
         {
             serve_client( fd );                           /* process each client */
         }

@@ -13,26 +13,22 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "network.h"
-#include "heap.h"
 #include "sws.h"
+#include "scheduler.h"
 
-//#define DEFAULT_HEAP_SIZE 1024
 
-/* This function takes a file handle to a client, reads in the request,
+/* -------------------------------------------------------------------------- *
+ * Purpose: This function takes a file handle to a client, reads in the request,
  *    parses the request, and sends back the requested file.  If the
  *    request is improper or the file is not available, the appropriate
  *    error is sent back.
  * Parameters:
  *             fd : the file descriptor to the client connection
  * Returns: None
- */
-
-void admit_request(struct RCB *request);
-void admit_scheduler(struct RCB *req);
-
+ * -------------------------------------------------------------------------- */
 pthread_mutex_t mutex;
 int sequence_number;
-enum scheduler_type s_type;
+enum scheduler_type scheduler;
 
 static void serve_client( int fd )
 {
@@ -79,11 +75,11 @@ static void serve_client( int fd )
     if ( !req )                                       /* is req valid? */
     {
         len = sprintf( buffer, "HTTP/1.1 400 Bad request\n\n" );
-        write( fd, buffer, len );                       /* if not, send err */
+        write( fd, buffer, len );                     /* if not, send err */
     }
     else                                              /* if so, open file */
     {
-        req++;                                          /* skip leading / */
+        req++;                                        /* skip leading /   */
         fin = fopen( req, "r" );
         fseek(fin, 0, SEEK_END);
         fileSize = ftell(fin);
@@ -93,71 +89,102 @@ static void serve_client( int fd )
         if ( !fin )                                    /* check if successful */
         {
             len = sprintf( buffer, "HTTP/1.1 404 File not found\n\n" );
-            write( fd, buffer, len );                  /* if not, send err */
+            write( fd, buffer, len );                  /* if not, send err    */
         }
-        else                                               /* if so, send file */
+        else                                           /* if so, send file    */
         {
-            len = sprintf( buffer, "HTTP/1.1 200 OK\n\n" );/* send success code */
+            /* send success code */
+            len = sprintf( buffer, "HTTP/1.1 200 OK\n\n" );
             write( fd, buffer, len );
-            request = malloc(sizeof(struct RCB));
-            request->fd = fd;
-            request->fptr = fin;
-            request->remainbytes = fileSize;
-            request->seq = sequence_number++;
+            request = malloc(sizeof(struct RCB));     /* Create RCB           */
+            request->fd = fd;                         /* Client ID            */
+            request->fptr = fin;                      /* Requested File       */
+            request->remainbytes = fileSize;          /* initially = filesize */
+            request->seq = sequence_number++;         /* Request Sequence     */
+            switch (scheduler)
+            {
+                /* SJF --> send entire file */
+                case SJF:
+                    request->quantum = fileSize;
+                    break;
+                    
+                /*   MLFQ & RR --> send only 8KB initially */
+                case RR:
+                case MLFQ:
+                    request->quantum = HIGH_PRIORITY_QUANTUM;
+                    break;
+            }
             admit_scheduler(request);
-            
         }
     }
-    close( fd );                                    /* close client connection*/
 }
 
-void process_request(struct RCB *req)
+/* -------------------------------------------------------------------------- *
+ * Purpose: Serve a single request from the queue. Resubmit to queue if needed.
+ *              
+ * Parameters: none
+ * Returns: integer denoting if the queue is empty or not,
+ * -------------------------------------------------------------------------- */
+int serve_request()
 {
-    int len;
-    static char *buffer;                            /* Request buffer         */
-    if (!req)
-        return;
-    do                                            /* loop, read & send file */
+    long len;                                          /* length of segment   */
+    static char *buffer;                               /* Request buffer      */
+    struct RCB *req = get_next_scheduler();            /* Get next request    */
+    long left = req->remainbytes;                      /* bytes left to send  */
+    long quantum = req->quantum;                       /* bytes per each serve*/
+    
+    /* IF no request are pending */
+    if (req == NULL)
+        return FALSE;                                  /* Queue is empty */
+    
+    /* 1st time, alloc buffer */
+    if ( !buffer ) {
+        buffer = malloc( MAX_HTTP_SIZE );
+        /* error check */
+        if ( !buffer ) {
+            perror( "Error while allocating memory" );
+            abort();
+        }
+    }
+    memset( buffer, 0, MAX_HTTP_SIZE );
+    
+    do
     {
-        len = fread( buffer, 1, MAX_HTTP_SIZE, req->fptr );  /* read file chunk */
-        if ( len < 0 )                              /* check for errors */
+        if ( left > MAX_HTTP_SIZE)
+            left = MAX_HTTP_SIZE;
+        len = fread( buffer, 1, left, req->fptr );         /* read file chunk */
+        if ( len < 0 )                                     /* check for errors*/
         {
             perror( "Error while writing to client" );
         }
-        else if ( len > 0 )                         /* if none, send chunk */
+        else if ( len > 0 )                                /* if none,send req*/
         {
-          //  len = write( fd, buffer, len );
-           // if ( len < 1 )                            /* check for errors */
-//            {
-  //              perror( "Error while writing to client" );
-    //        }
-      //  }
-//    }
+            len = write( req->fd, buffer, len );
+            if ( len < 1 )                                 /* check for errors*/
+            {
+                perror( "Error while writing to client" );
+            }
+            req->remainbytes -=left;
+            quantum -=left;
         }
-  //  while ( len == MAX_HTTP_SIZE );               /* the last chunk < 8192 */
-    //fclose( fin );
-    }while(1);
-}
-
-/* Check the scheduler type specified by user */
-enum scheduler_type scheduler_init(char *scheduler)
-{
-    if (!strcasecmp(scheduler, "SJF"))
-        return SJF;
+        
+    }while (len == MAX_HTTP_SIZE && quantum > 0);
     
-    else if (!strcasecmp(scheduler, "RR"))
-        return RR;
-    
-    else if (!strcasecmp(scheduler, "MLFQ"))
-        return MLFQ;
-    
+    /* IF request is fully serviced */
+    if (req->remainbytes == 0)
+    {
+        fclose( req->fptr );                       /* Close requested file    */
+        close(req->fd);                            /* Close client descriptor */
+    }
     else
-        return BAD_SCHEDULER;
+        resubmit_scheduler(req);
+    
+    return TRUE;               /* Assume queue not empty, recheck upon recall */
 }
 
 
-
-/* This function is where the program starts running.
+/* -------------------------------------------------------------------------- *
+ * Purpose: This function is where the program starts running.
  *    The function first parses its command line parameters to determine port #
  *    Then, it initializes, the network and enters the main loop.
  *    The main loop waits for a client (1 or more to connect, and then processes
@@ -166,50 +193,49 @@ enum scheduler_type scheduler_init(char *scheduler)
  *             argc : number of command line parameters (including program name
  *             argv : array of pointers to command line parameters
  * Returns: an integer status code, 0 for success, something else for error.
- */
+ * -------------------------------------------------------------------------- */
 int main( int argc, char **argv )
 {
-    int port = -1;                                  /* server port #          */
-    int fd;                                         /* client file descriptor */
-
-    /* Check for and process parameters */
-    if ( argc < 3 )
+    int port;                                       /* Server port #          */
+    int fd;                                         /* Client file descriptor */
+    int queue_status = 0;                           /* Pending queue status   */
+    
+    if ( argc < 3 )                                 /* Check for parameters   */
     {
-        printf( "usage: sws <port> <scheduler>\n" );
+        printf( "usage: sws <port> <scheduler> \n" );
         return 0;
     }
     
-    /* Get port number */
-    sscanf( argv[1], "%d", &port );
+    sscanf( argv[1], "%d", &port );                 /* Get port number        */
     
     /* Check if port is within specified range */
-    if(port < 1024 || port > 65335)
+    if(port < 1024 || port > 65535)
     {
         printf( "Inaccessible port\n" );
         return 0;
     }
     
     /* Check if Scheduler is supported */
-    if ((s_type = scheduler_init(argv[2])) == BAD_SCHEDULER)
+    if ((scheduler = scheduler_init(argv[2])) == BAD_SCHEDULER)
     {
         printf( "Unsupported Scheduler\n" );
         return 0;
     }
     
+  //thread_init(argv[3]);                              /* Initialize threads  */
     sequence_number = 1;
-    network_init( port );                             /* init network module */
+    network_init( port );                              /* init network module */
 
-    for ( ;; )                                        /* main loop */
+    for ( ;; )                                         /* infinite main loop  */
     {
-        network_wait();                                 /* wait for clients */
-
-        /* Admit to scheduler */
-        for ( fd = network_open(); fd >= 0; fd = network_open() ) /* get clients */
+        network_wait();                                /* wait for clients    */
+        
+        while ((fd = network_open()) >=0 || queue_status)
         {
-            serve_client( fd );                           /* process each client */
+            if (fd >=0)
+                serve_client( fd );                    /* process each client */
+        
+            queue_status = serve_request();            /* Process  requests   */
         }
-        
-        /* Serve request */
-        
     }
 }

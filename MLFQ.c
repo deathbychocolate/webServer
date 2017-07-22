@@ -9,22 +9,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sws.h"
+#include "scheduler.h"
+
 
 /* Number of supported priorities */
 #define MAX_PRIORITY            3
 
 /* head and tail of priority queues */
-struct MLFQ_Q *head[MAX_PRIORITY];
-struct MLFQ_Q *tail[MAX_PRIORITY];
+struct Queue *head[MAX_PRIORITY];
+struct Queue *tail[MAX_PRIORITY];
 
 
-
-
-/* admit to the end of the RR queue */
+/* -------------------------------------------------------------------------- *
+ * Purpose: admit to the end of the MLFQ queue
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
 void admit_MLFQ(struct RCB *req, enum MLFP priority)
 {
-    struct MLFQ_Q *entry;
-    entry = (struct MLFQ_Q*)malloc(sizeof(struct MLFQ_Q));
+    struct Queue *entry;
+    entry = (struct Queue*)malloc(sizeof(struct Queue));
     entry -> request = req;
     /*If queue is empty */
     if ( head[priority] == NULL)
@@ -41,9 +45,14 @@ void admit_MLFQ(struct RCB *req, enum MLFP priority)
     }
 }
 
+/* -------------------------------------------------------------------------- *
+ * Purpose: aquire and remove the next request from the queue
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
 struct RCB *get_MLFQ(enum MLFP priority)
 {
-    struct MLFQ_Q *entry = head[priority];
+    struct Queue *entry = head[priority];
     /* If queue is not empty*/
     if (head[priority])
     {
@@ -53,4 +62,19 @@ struct RCB *get_MLFQ(enum MLFP priority)
     }
     else
         return NULL;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Purpose: Check for the highest, not empty, priority queue.
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
+enum MLFP get_priority()
+{
+    if (head[HIGH_PRIORITY])
+        return HIGH_PRIORITY;
+    else if (head[MED_PRIORITY])
+        return MED_PRIORITY;
+    else
+        return LOW_PRIORITY;
 }

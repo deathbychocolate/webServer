@@ -11,38 +11,48 @@
 #include "sws.h"
 
 
-struct RR_Q *head;
-struct RR_Q *tail;
+struct Queue *head_RR;
+struct Queue *tail_RR;
 
-/* admit to the end of the RR queue */
+
+/* -------------------------------------------------------------------------- *
+ * Purpose: admit to the end of the RR queue
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
 void admit_RR(struct RCB *req)
 {
-    struct RR_Q *entry;
-    entry = (struct RR_Q*)malloc(sizeof(struct RR_Q));
+    struct Queue *entry;
+    entry = (struct Queue*)malloc(sizeof(struct Queue));
     entry -> request = req;
     /*If queue is empty */
-    if ( head == NULL)
+    if ( head_RR == NULL)
     {
-        entry ->next = head;
-        head = entry;
+        entry ->next = head_RR;
+        head_RR = entry;
     }
-    /* queue has one  or more elements */
+    /* queue has one or more elements */
     else
     {
-        tail -> next = entry;
-        tail = entry;
+        tail_RR -> next = entry;
         entry -> next = NULL;
     }
+    tail_RR = entry;
 }
 
+/* -------------------------------------------------------------------------- *
+ * Purpose: aquire and remove the next request from the queue
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
 struct RCB *get_RR ()
 {
-    struct RR_Q *entry = head;
+    struct Queue *entry = head_RR;
     /* If queue is not empty*/
-    if (head)
+    if (head_RR)
     {
         /* acquire head of the queue */
-        head = head -> next;
+        head_RR = head_RR -> next;
         return entry->request;
     }
     else

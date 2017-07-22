@@ -3,8 +3,11 @@
 #define SWS_H
 
 #define MAX_HTTP_SIZE 8192                      /* size of buffer to allocate */
+#define HIGH_PRIORITY_QUANTUM    MAX_HTTP_SIZE  /* High priority quantum      */
+#define LOW_PRIORITY_QUANTUM     65535          /* Low  priority quantum      */
 
-
+#define TRUE    1
+#define FALSE   0
 /* Request Control Block - each request is assigned an RCB */
 struct RCB
 {
@@ -12,31 +15,22 @@ struct RCB
     int  fd;                              /* Client file descriptor           */
     FILE *fptr;                           /* Requested File Handle            */
     long remainbytes;                     /* Number of remaining bytes        */
-    int quantum;                          /* Current quantum                  */
+    long quantum;                         /* Current quantum                  */
 };
-
 
 /* Scheduler Type */
-enum scheduler_type {BAD_SCHEDULER,SJF,RR,MLFQ};
+enum scheduler_type {SJF,RR,MLFQ,BAD_SCHEDULER};
 
-/* Multi Level Feedback Priority */
-enum MLFP {HIGH_PRIORITY, MED_PRIORITY, LOW_PRIORITY};
-
-/* RR queue */
-struct RR_Q
+/* Queue structure */
+struct Queue
 {
     struct RCB *request;
-    struct RR_Q *next;
-};
-
-/* MLFQ queue */
-struct MLFQ_Q
-{
-    struct RCB *request;
-    struct MLFQ_Q *next;
+    struct Queue *next;
+    pthread_mutex_t lock;     /* Mutex lock to prevent race condition       */
+    pthread_cond_t check;     /* Communicate queue availability b/w threads */
 };
 
 /* External variables */
-extern enum scheduler_type s_type;
+extern enum scheduler_type scheduler;
 
 #endif

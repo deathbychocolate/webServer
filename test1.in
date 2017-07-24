@@ -1,6 +1,5 @@
-2048
-0.0 0.5 /Users/Dahmi/Documents/GitHub/webServer/sws.c
-0.0 0.5 /Users/Dahmi/Documents/GitHub/webServer/sws.h
-0.0 0.5 /Users/Dahmi/Documents/GitHub/webServer/empty.txt
+38080
 
-
+0.0 0.5 tests/100kb.txt
+0.0 0.5 tests/50kb.txt
+0.0 0.5 tests/64kb.txt

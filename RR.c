@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sws.h"
+#include "scheduler.h"
 
 
 struct Queue *head_RR;

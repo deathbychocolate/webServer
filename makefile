@@ -1,12 +1,12 @@
 # Targets & general dependencies
 PROGRAM = sws
-HEADERS = network.h
-OBJS = network.o sws.o
+HEADERS = network.h scheduler.h sws.h 
+OBJS = network.o sws.o SJF.o scheduler.o MLFQ.o RR.o
 ADD_OBJS = 
 
 # compilers, linkers, utilities, and flags
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -w -l pthreads
 COMPILE = $(CC) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) -o $@ 
 

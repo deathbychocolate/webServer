@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 #include "network.h"
 #include "sws.h"
 #include "scheduler.h"
@@ -81,10 +80,6 @@ static void serve_client( int fd )
     {
         req++;                                        /* skip leading /   */
         fin = fopen( req, "r" );
-        fseek(fin, 0, SEEK_END);
-        fileSize = ftell(fin);
-        fseek(fin, 0, SEEK_SET);
-        printf("The file size is: %ld bytes", fileSize);
         /* open file */
         if ( !fin )                                    /* check if successful */
         {
@@ -99,6 +94,10 @@ static void serve_client( int fd )
             request = malloc(sizeof(struct RCB));     /* Create RCB           */
             request->fd = fd;                         /* Client ID            */
             request->fptr = fin;                      /* Requested File       */
+            fseek(fin, 0, SEEK_END);
+            fileSize = ftell(fin);
+            fseek(fin, 0, SEEK_SET);
+            printf("The file size is: %ld bytes", fileSize);
             request->remainbytes = fileSize;          /* initially = filesize */
             request->seq = sequence_number++;         /* Request Sequence     */
             switch (scheduler)
@@ -127,15 +126,15 @@ static void serve_client( int fd )
  * -------------------------------------------------------------------------- */
 int serve_request()
 {
-    long len;                                          /* length of segment   */
-    static char *buffer;                               /* Request buffer      */
-    struct RCB *req = get_next_scheduler();            /* Get next request    */
-    long left = req->remainbytes;                      /* bytes left to send  */
-    long quantum = req->quantum;                       /* bytes per each serve*/
+    long len;                                    /* length of segment         */
+    static char *buffer;                         /* Request buffer            */
+    struct RCB *req = get_next_scheduler();      /* Get next request          */
+    if (req == NULL)                             /* IF no request are pending */
+        return FALSE;                            /* */
+    long left = req->remainbytes;                /* bytes left to send        */
+    long quantum = req->quantum;                 /* bytes per each serve      */
     
-    /* IF no request are pending */
-    if (req == NULL)
-        return FALSE;                                  /* Queue is empty */
+                                /* Queue is empty */
     
     /* 1st time, alloc buffer */
     if ( !buffer ) {

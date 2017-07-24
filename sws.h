@@ -8,6 +8,9 @@
 
 #define TRUE    1
 #define FALSE   0
+
+#include <pthread.h>
+
 /* Request Control Block - each request is assigned an RCB */
 struct RCB
 {

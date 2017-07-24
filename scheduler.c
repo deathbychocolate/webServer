@@ -24,7 +24,7 @@ void admit_scheduler(struct RCB *req)
             admit_RR(req);
             break;
         case SJF:
-            //admit_SJF(req);
+            admit_SJF(req);
             break;
         case MLFQ:
             admit_MLFQ(req,HIGH_PRIORITY);

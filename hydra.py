@@ -16,7 +16,7 @@
 # - The remain lines represent requests to the server.  Each request comprises
 #   three parts:
 #   + delay : number of seconds (float) before connecting to the server
-#   + pause : number of seconds (flaot) after connectkng before sending request
+#   + pause : number of seconds (float) after connecting before sending request
 #   + file  : file (path) to requet
 #   Here is an example of a test file that makes hydra connect to the webserver
 #   on port 8080 and requests four files:
@@ -28,7 +28,7 @@
 #   0.5 0.0 makefile
 #
 # The first request connects immediately, but waits for 1 second before sending
-# the request.  The remaining requests all wait 0.5 seconds before connecting.
+# the request. The remaining requests all wait 0.5 seconds before connecting.
 # By setting the delay and the pause appropriate we can control how many clients
 # are connected to the webserver at any time.
 #
@@ -134,7 +134,7 @@ try:
 
   DeadMan(10.0).start()
 except:
-  print "Out of threads, asta la vista"
+  print "Out of threads, Hasta la vista"
   os._exit(0)
 
 finished = 1

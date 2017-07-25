@@ -1,5 +1,6 @@
 38080
 
-0.0 0.5 tests/100kb.txt
-0.0 0.5 tests/50kb.txt
-0.0 0.5 tests/64kb.txt
+0.0 0.5 tests/40kb.txt
+0.0 0.5 tests/114kb.txt
+0.0 0.5 tests/90kb.txt
+0.0 0.5 tests/43kb.txt

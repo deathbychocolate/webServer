@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int testFiles = 10;//number of files in the folder created
+int testFiles = 100;//number of files in the folder created
 int sizeFiles = 5;//number of random packets in each file
 
 int main(){

@@ -40,9 +40,10 @@ void admit_MLFQ(struct RCB *req, enum MLFP priority)
     else
     {
         tail[priority] -> next = entry;
-        tail[priority] = entry;
+        //tail[priority] = entry;
         entry -> next = NULL;
     }
+    tail[priority] = entry;
 }
 
 /* -------------------------------------------------------------------------- *

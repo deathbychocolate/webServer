@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "network.h"
 #include "sws.h"
 #include "scheduler.h"
@@ -29,6 +30,22 @@ pthread_mutex_t mutex;
 int sequence_number;
 enum scheduler_type scheduler;
 
+void safe_enqueue(struct RCB *new, int admit)
+{
+    pthread_mutex_lock(&mutex);
+    if (admit == 1) admit_scheduler(new);
+    else resubmit_scheduler(new);
+    pthread_mutex_unlock(&mutex);
+}
+struct RCB *safe_dequeue()
+{
+    pthread_mutex_lock(&mutex);
+    struct RCB *new = get_next_scheduler();
+    pthread_mutex_unlock(&mutex);
+    return new;
+}
+
+
 static void serve_client( int fd )
 {
     //pthread_mutex_lock(&mutex);
@@ -40,7 +57,7 @@ static void serve_client( int fd )
     int len;                                        /* length of data read    */
     long int fileSize;                              /* Size of requested file */
     struct RCB *request;                            /* Request control block  */
-    
+
     /* 1st time, alloc buffer */
     if ( !buffer )
     {
@@ -52,8 +69,8 @@ static void serve_client( int fd )
             abort();
         }
     }
-    
-    
+
+
     memset( buffer, 0, MAX_HTTP_SIZE );
     if ( read( fd, buffer, MAX_HTTP_SIZE ) <= 0 )    /* read req from client  */
     {
@@ -102,25 +119,26 @@ static void serve_client( int fd )
             request->seq = sequence_number++;         /* Request Sequence     */
             switch (scheduler)
             {
-                /* SJF --> send entire file */
-                case SJF:
-                    request->quantum = fileSize;
-                    break;
-                    
-                /*   MLFQ & RR --> send only 8KB initially */
-                case RR:
-                case MLFQ:
-                    request->quantum = HIGH_PRIORITY_QUANTUM;
-                    break;
+            /* SJF --> send entire file */
+            case SJF:
+                request->quantum = fileSize;
+                break;
+
+            /*   MLFQ & RR --> send only 8KB initially */
+            case RR:
+            case MLFQ:
+                request->quantum = HIGH_PRIORITY_QUANTUM;
+                break;
             }
-            admit_scheduler(request);
+            safe_enqueue(request, 1);
+            //admit_scheduler(request);
         }
     }
 }
 
 /* -------------------------------------------------------------------------- *
  * Purpose: Serve a single request from the queue. Resubmit to queue if needed.
- *              
+ *
  * Parameters: none
  * Returns: integer denoting if the queue is empty or not,
  * -------------------------------------------------------------------------- */
@@ -128,25 +146,28 @@ int serve_request()
 {
     long len;                                    /* length of segment         */
     static char *buffer;                         /* Request buffer            */
-    struct RCB *req = get_next_scheduler();      /* Get next request          */
+    struct RCB *req = safe_dequeue();
+    //struct RCB *req = get_next_scheduler();      /* Get next request          */
     if (req == NULL)                             /* IF no request are pending */
         return FALSE;                            /* */
     long left = req->remainbytes;                /* bytes left to send        */
     long quantum = req->quantum;                 /* bytes per each serve      */
-    
-                                /* Queue is empty */
-    
+
+    /* Queue is empty */
+
     /* 1st time, alloc buffer */
-    if ( !buffer ) {
+    if ( !buffer )
+    {
         buffer = malloc( MAX_HTTP_SIZE );
         /* error check */
-        if ( !buffer ) {
+        if ( !buffer )
+        {
             perror( "Error while allocating memory" );
             abort();
         }
     }
     memset( buffer, 0, MAX_HTTP_SIZE );
-    
+
     do
     {
         if ( left > MAX_HTTP_SIZE)
@@ -159,20 +180,21 @@ int serve_request()
         else if ( len > 0 )                                /* if none,send req*/
         {
             len = write( req->fd, buffer, len );
-            printf("%s",buffer);
+            printf("%s", buffer);
             fflush(stdout);
             if ( len < 1 )                                 /* check for errors*/
             {
                 perror( "Error while writing to client" );
             }
-            req->remainbytes -=left;
-            quantum -=left;
+            req->remainbytes -= left;
+            quantum -= left;
             if (scheduler == SJF && quantum > 0)
                 left = quantum;
         }
-        
-    }while (len == MAX_HTTP_SIZE && quantum > 0);
-    
+
+    }
+    while (len == MAX_HTTP_SIZE && quantum > 0);
+
     /* IF request is fully serviced */
     if (req->remainbytes == 0)
     {
@@ -181,9 +203,21 @@ int serve_request()
         free(req);
     }
     else
-        resubmit_scheduler(req);
-    
+        safe_enqueue(req, 0);
+        //resubmit_scheduler(req);
+
     return TRUE;               /* Assume queue not empty, recheck upon recall */
+}
+
+/*
+ * entry function for the threads
+ */
+void *entry(void *rcb)
+{
+    for (;;)
+    {
+        serve_request();
+    }
 }
 
 
@@ -192,9 +226,43 @@ int serve_request()
  * Parameters:
  * Returns:
  * -------------------------------------------------------------------------- */
-void thread_init(char *numthreads)
+void thread_init(int numThreads, int port)
 {
-    
+    int i;
+    pthread_t threads[numThreads];
+    for (i = 0; i < numThreads; i++)
+    {
+        pthread_create(&threads[i], NULL, entry, NULL);
+    }
+    get_reqs(port);
+    for (i = 0; i < numThreads; i++)
+    {
+        pthread_join(threads[i], NULL);
+    }
+}
+
+
+/*
+ * waits for requests, then schedules them
+ */
+int get_reqs(int port)
+{
+    int fd;
+    sequence_number = 1;
+    network_init( port );                              // init network module
+
+    for ( ;; )                                         // infinite main loop
+    {
+        network_wait();                                // wait for clients
+
+        while ((fd = network_open()) >= 0)
+        {
+            if (fd >= 0)
+                serve_client( fd );                    // process each client
+
+            //queue_status = serve_request();            // Process requests
+        }
+    }
 }
 
 /* -------------------------------------------------------------------------- *
@@ -211,45 +279,46 @@ void thread_init(char *numthreads)
 int main( int argc, char **argv )
 {
     int port;                                       /* Server port #          */
-    int fd;                                         /* Client file descriptor */
+    //int fd;                                         /* Client file descriptor */
     int queue_status = 0;                           /* Pending queue status   */
-    
+
     if ( argc < 4 )                                 /* Check for parameters   */
     {
         printf( "usage: sws <port> <scheduler> <threads>\n" );
         return 0;
     }
-    
+
     sscanf( argv[1], "%d", &port );                 /* Get port number        */
-    
+
     /* Check if port is within specified range */
-    if(port < 1024 || port > 65535)
+    if (port < 1024 || port > 65535)
     {
         printf( "Inaccessible port\n" );
         return 0;
     }
-    
+
     /* Check if Scheduler is supported */
     if ((scheduler = scheduler_init(argv[2])) == BAD_SCHEDULER)
     {
         printf( "Unsupported Scheduler\n" );
         return 0;
     }
-    
-    thread_init(argv[3]);                              /* Initialize threads  */
+    thread_init(sscanf(argv[3], "%d"), port);                              /* Initialize threads  */
+    /*
     sequence_number = 1;
-    network_init( port );                              /* init network module */
+    network_init( port );                              // init network module
 
-    for ( ;; )                                         /* infinite main loop  */
+    for ( ;; )                                         // infinite main loop
     {
-        network_wait();                                /* wait for clients    */
-        
-        while ((fd = network_open()) >=0 || queue_status)
+        network_wait();                                // wait for clients
+
+        while ((fd = network_open()) >= 0 || queue_status)
         {
-            if (fd >=0)
-                serve_client( fd );                    /* process each client */
-        
-            queue_status = serve_request();            /* Process  requests   */
+            if (fd >= 0)
+                serve_client( fd );                    // process each client
+
+            queue_status = serve_request();            // Process requests
         }
     }
+    */
 }

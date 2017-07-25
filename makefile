@@ -6,7 +6,7 @@ ADD_OBJS =
 
 # compilers, linkers, utilities, and flags
 CC = gcc
-CFLAGS = -Wall -g -w -l pthreads
+CFLAGS = -Wall -g -w -pthread
 COMPILE = $(CC) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) -o $@ 
 

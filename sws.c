@@ -159,12 +159,16 @@ int serve_request()
         else if ( len > 0 )                                /* if none,send req*/
         {
             len = write( req->fd, buffer, len );
+            printf("%s",buffer);
+            fflush(stdout);
             if ( len < 1 )                                 /* check for errors*/
             {
                 perror( "Error while writing to client" );
             }
             req->remainbytes -=left;
             quantum -=left;
+            if (scheduler == SJF && quantum > 0)
+                left = quantum;
         }
         
     }while (len == MAX_HTTP_SIZE && quantum > 0);
@@ -174,6 +178,7 @@ int serve_request()
     {
         fclose( req->fptr );                       /* Close requested file    */
         close(req->fd);                            /* Close client descriptor */
+        free(req);
     }
     else
         resubmit_scheduler(req);

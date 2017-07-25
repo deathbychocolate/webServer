@@ -19,10 +19,10 @@
 struct Queue *head[MAX_PRIORITY];
 struct Queue *tail[MAX_PRIORITY];
 
-
 /* -------------------------------------------------------------------------- *
  * Purpose: admit to the end of the MLFQ queue
  * Parameters:
+ *                  req: the 
  * Returns:
  * -------------------------------------------------------------------------- */
 void admit_MLFQ(struct RCB *req, enum MLFP priority)

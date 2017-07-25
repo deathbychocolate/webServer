@@ -188,6 +188,16 @@ int serve_request()
 
 
 /* -------------------------------------------------------------------------- *
+ * Purpose: initialize threads
+ * Parameters:
+ * Returns:
+ * -------------------------------------------------------------------------- */
+void thread_init(char *numthreads)
+{
+    
+}
+
+/* -------------------------------------------------------------------------- *
  * Purpose: This function is where the program starts running.
  *    The function first parses its command line parameters to determine port #
  *    Then, it initializes, the network and enters the main loop.
@@ -204,9 +214,9 @@ int main( int argc, char **argv )
     int fd;                                         /* Client file descriptor */
     int queue_status = 0;                           /* Pending queue status   */
     
-    if ( argc < 3 )                                 /* Check for parameters   */
+    if ( argc < 4 )                                 /* Check for parameters   */
     {
-        printf( "usage: sws <port> <scheduler> \n" );
+        printf( "usage: sws <port> <scheduler> <threads>\n" );
         return 0;
     }
     
@@ -226,7 +236,7 @@ int main( int argc, char **argv )
         return 0;
     }
     
-  //thread_init(argv[3]);                              /* Initialize threads  */
+    thread_init(argv[3]);                              /* Initialize threads  */
     sequence_number = 1;
     network_init( port );                              /* init network module */
 

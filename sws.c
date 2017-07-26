@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "network.h"
 #include "sws.h"
 #include "scheduler.h"
@@ -29,6 +30,7 @@
 pthread_mutex_t mutex;
 int sequence_number;
 enum scheduler_type scheduler;
+sem_t sem;
 
 void safe_enqueue(struct RCB *new, int admit)
 {
@@ -204,7 +206,7 @@ int serve_request()
     }
     else
         safe_enqueue(req, 0);
-        //resubmit_scheduler(req);
+    //resubmit_scheduler(req);
 
     return TRUE;               /* Assume queue not empty, recheck upon recall */
 }
@@ -216,7 +218,11 @@ void *entry(void *rcb)
 {
     for (;;)
     {
-        serve_request();
+        if(!serve_request())
+        {
+            //suspends thread is queue is empty
+            sem_wait(&sem);
+        }
     }
 }
 
@@ -225,9 +231,10 @@ void *entry(void *rcb)
  * Purpose: initialize threads
  * Parameters:
  * Returns:
- * -------------------------------------------------------------------------- */
+ * -----------------S--------------------------------------------------------- */
 void thread_init(int numThreads, int port)
 {
+    printf("Starting threads %d\n", numThreads);
     int i;
     pthread_t threads[numThreads];
     for (i = 0; i < numThreads; i++)
@@ -252,13 +259,16 @@ int get_reqs(int port)
     network_init( port );                              // init network module
 
     for ( ;; )                                         // infinite main loop
-    {
+    {   
         network_wait();                                // wait for clients
 
         while ((fd = network_open()) >= 0)
         {
             if (fd >= 0)
+            {
                 serve_client( fd );                    // process each client
+                sem_post(&sem);
+            }
 
             //queue_status = serve_request();            // Process requests
         }
@@ -278,7 +288,8 @@ int get_reqs(int port)
  * -------------------------------------------------------------------------- */
 int main( int argc, char **argv )
 {
-    int port;                                       /* Server port #          */
+    int port;
+    int threads;                                       /* Server port #          */
     //int fd;                                         /* Client file descriptor */
     int queue_status = 0;                           /* Pending queue status   */
 
@@ -303,7 +314,8 @@ int main( int argc, char **argv )
         printf( "Unsupported Scheduler\n" );
         return 0;
     }
-    thread_init(sscanf(argv[3], "%d"), port);                              /* Initialize threads  */
+    sscanf(argv[3], "%d", &threads);
+    thread_init(threads, port);                              /* Initialize threads  */
     /*
     sequence_number = 1;
     network_init( port );                              // init network module

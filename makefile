@@ -31,15 +31,34 @@ clean:
 runmlfq:
 	./$(PROGRAM) 38080 mlfq 1 &
 	make test
+
+runmlfq8:
 	./$(PROGRAM) 38080 mlfq 8 &
 	make test
 
+runmlfq16:
+	./$(PROGRAM) 38080 mlfq 16 &
+	make test
 runrr:
 	./$(PROGRAM) 38080 rr 1 &
 	make test
 
+runrr8:
+	./$(PROGRAM) 38080 rr 8 &
+	make test
+
+runrr16:
+	./$(PROGRAM) 38080 rr 16 &
+	make test
+
 runsjf:
 	./$(PROGRAM) 38080 sjf 1 &
+	make test
+runsjf8:
+	./$(PROGRAM) 38080 sjf 8 &
+	make test
+runsjf16:
+	./$(PROGRAM) 38080 sjf 16 &
 	make test
 
 test:

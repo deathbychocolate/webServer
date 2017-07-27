@@ -30,48 +30,134 @@ clean:
 
 runmlfq:
 	./$(PROGRAM) 38080 mlfq 1 &
-	make test
+	make testm1
+	make runmlfq8
 
 runmlfq8:
 	./$(PROGRAM) 38080 mlfq 8 &
-	make test
+	make testm2
+	make runmlfq16
 
 runmlfq16:
 	./$(PROGRAM) 38080 mlfq 16 &
-	make test
+	make testm3
+	make runmlfq32
+
+runmlfq32:
+	./$(PROGRAM) 38080 mlfq 16 &
+	make testm4
+	make runmlfq64
+
+runmlfq64:
+	./$(PROGRAM) 38080 mlfq 16 &
+	make testm5
+
 runrr:
 	./$(PROGRAM) 38080 rr 1 &
-	make test
-
+	make testr1
+	make runrr8
 runrr8:
 	./$(PROGRAM) 38080 rr 8 &
-	make test
+	make testr2
+	make runrr16
 
 runrr16:
 	./$(PROGRAM) 38080 rr 16 &
-	make test
+	make testr3
+	make runrr32
+
+runrr32:
+	./$(PROGRAM) 38080 rr 32 &
+	make testr4
+	make runrr64
+
+runrr64:
+	./$(PROGRAM) 38080 rr 64 &
+	make testr5
 
 runsjf:
 	./$(PROGRAM) 38080 sjf 1 &
-	make test
+	make tests1
+	make runsjf8
+
 runsjf8:
 	./$(PROGRAM) 38080 sjf 8 &
-	make test
+	make tests2
+	make runsjf16
+
 runsjf16:
 	./$(PROGRAM) 38080 sjf 16 &
-	make test
+	make tests3
+	make runsjf32
 
-test:
-	./hydra.py < test1.in > test1.txt
-	./hydra.py < test2.in > test2.txt
-	./hydra.py < test3.in > test3.txt
-	./hydra.py < test4.in > test4.txt
-	./hydra.py < test5.in > test5.txt
-	./hydra.py < test6.in > test6.txt
-	./hydra.py < test7.in > test7.txt
-	./hydra.py < test8.in > test8.txt
-	./hydra.py < test9.in > test9.txt
-	./hydra.py < test10.in > test10.txt
+runsjf32:
+	./$(PROGRAM) 38080 sjf 16 &
+	make tests4
+	make runsjf64
+
+runsjf64:
+	./$(PROGRAM) 38080 sjf 16 &
+	make tests5
+
+testr1:
+	./hydra.py < test1.in > test.1.R.txt
+	./hydra.py < test2.in > test.2.R.txt
+	
+testr2:
+	./hydra.py < test3.in > test.3.R.txt
+	./hydra.py < test4.in > test.4.R.txt
+	./hydra.py < test5.in > test.5.R.txt
+	./hydra.py < test6.in > test.6.R.txt
+	./hydra.py < test7.in > test.7.R.txt
+
+testr3:
+	./hydra.py < test8.in > test.8.R.txt
+
+testr4:
+	./hydra.py < test9.in > test.9.R.txt
+
+testr5:
+	./hydra.py < test10.in > test.10.R.txt
+
+tests1:
+	./hydra.py < test1.in > test.1.S.txt
+	./hydra.py < test2.in > test.2.S.txt
+
+tests2:
+	./hydra.py < test3.in > test.3.S.txt
+	./hydra.py < test4.in > test.4.S.txt
+	./hydra.py < test5.in > test.5.S.txt
+	./hydra.py < test6.in > test.6.S.txt
+	./hydra.py < test7.in > test.7.S.txt
+
+tests3:
+	./hydra.py < test8.in > test.8.S.txt
+
+tests4:
+	./hydra.py < test9.in > test.9.S.txt
+
+tests5:
+	./hydra.py < test10.in > test.10.S.txt
+
+testm1:
+	./hydra.py < test1.in > test.1.M.txt
+	./hydra.py < test2.in > test.2.M.txt
+
+testm2:
+	./hydra.py < test3.in > test.3.M.txt
+	./hydra.py < test4.in > test.4.M.txt
+	./hydra.py < test5.in > test.5.M.txt
+	./hydra.py < test6.in > test.6.M.txt
+	./hydra.py < test7.in > test.7.M.txt
+
+testm3:
+	./hydra.py < test8.in > test.8.M.txt
+
+testm4:
+	./hydra.py < test9.in > test.9.M.txt
+
+testm5:
+	./hydra.py < test10.in > test.10.M.txt
 
 zip:
 	rm -f sws.zip

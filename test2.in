@@ -6,4 +6,3 @@
 1.5 0.1 tests/32kb.txt
 0.1 0 tests/64kb.txt
 0 0.2 tests/128kb.txt
-

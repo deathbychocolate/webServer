@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-int testFiles = 100;//number of files in the folder created
-int sizeFiles = 5;//number of random packets in each file
+int testFiles = 1;//number of files in the folder created
+int sizeFiles = 1000;//number of random packets in each file
 
 int main(){
 	int n = 1, i = 1;
@@ -11,7 +11,7 @@ int main(){
 
 		char name[12];
 
-		sprintf(name, "test%d.in", n);
+		sprintf(name, "test1%d.in", n+1);
 
 		FILE * fileN;
 		fileN = fopen(name, "w");

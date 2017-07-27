@@ -28,6 +28,11 @@ lib: sws_gold.o
 clean:
 	rm -f *.o $(PROGRAM) $(FILES) 
 
+run: 
+	make runmlfq
+	make runrr
+	make runsjf
+
 runmlfq:
 	./$(PROGRAM) 38080 mlfq 1 &
 	make testm1

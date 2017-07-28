@@ -1,17 +1,12 @@
+
 Test.4
 
-0.1 0 tests/8kb.txt
-0.2 0 tests/16kb.txt
-0.3 0 tests/24kb.txt
-0.4 0 tests/32kb.txt
-0.5 0 tests/64kb.txt
-
-8 threads
-5 total files
-
 Group Number:5
+
 Purpose: Test 4 is to test 5 files of varying size in 8 thread orientation
-How it works: By inputing all 5 files at the same decay time, increasing initail time setting threads to 8 on input.
+
+How it works: By inputing all 5 files at the same decay time, increasing initial time setting threads to 8 on input.
+
 Expected result:
 SJF:
 If the multiple files come in to the queue, we will expected them sort by the
@@ -26,3 +21,16 @@ MLFB:
 Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
 of completion of the process depends on the processing time and arrival time of
 each file.
+
+
+file:
+38080
+0.1 0.0 tests/8kb.txt
+0.2 0.0 tests/16kb.txt
+0.3 0.0 tests/24kb.txt
+0.4 0.0 tests/32kb.txt
+0.5 0.0 tests/64kb.txt
+
+setup:
+8 threads
+5 total files

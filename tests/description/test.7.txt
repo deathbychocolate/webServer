@@ -1,0 +1,33 @@
+38080
+
+0 1 tests/8kb.txt
+1 0 tests/16kb.txt
+0 2 tests/24kb.txt
+2 0 tests/32kb.txt
+0 3 tests/64kb.txt
+3 0 tests/128kb.txt
+
+8 threads
+file size ranges from 8-128kb
+6 files in total
+
+Group Number:5
+Purpose: Test 7 is to test 6 files of incrementing size in 8 thread orientation with decay times that cause them to have same arrival time as the files arriving a 1 2 and 3.
+How it works: By inputing all 6 files of incrementing initial and decay time setting threads to 8 on input results in conflicting file times.
+
+Expected result: 1 2 3 4 5 6
+Since the increasing jobs makes the shortest job this result, the round robin may result differently.
+
+SJF:
+If the multiple files come in to the queue, we will expected them sort by the
+size of the file. Sometimes they will finish too soon before another file join
+in the queue. Order should be size so the delayed files should run before their intial time pairs. 
+
+RR:
+Large files have to be processed in size quantum of 8KB. Files that arrive
+early start to process, later file can join and each of them take the turn. Order would be the intials of 1 3 5 2 4 6 since the intial times give us the different order.
+
+MLFB:
+Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
+of completion of the process depends on the processing time and arrival time of
+each file. Order should be based on size. This order could differ because of how fast 8KB could be processed compared to the intial times of 2 4 and 6.

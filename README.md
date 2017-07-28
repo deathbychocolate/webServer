@@ -12,8 +12,9 @@ Members: Abdulrahman M. Al Jedaibi
 
 Steps:
 1)Enter: make      //in order to create the sws
-2)Enter: make run(rr|sjf|mlfq)  //to run the sws or sjf or mlfq minus the brackets in background
-3)Results will be output to test.#.(R|S|M).txt for your observation
-4)Test description files will be found in the descriptions folder
-5)Tests folder holder the files of size 1kb to 128kbs that the test#.in reference
+2)Enter: make run  //to run the sws & sjf & mlfq one after the other
+3)Results will be output to test.#.(R|S|M).outt for your observation in the tests/out folder
+4)Test description files will be found in the tests/descriptions folder test.#.txt
+5)Tests/files folder holder the files of size 1kb to 128kbs that the test#.in reference
+6)tests/In will hold the test#.in
 

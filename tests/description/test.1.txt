@@ -2,12 +2,12 @@ Test.1
 
 38080
 
-0.0 0.5 tests/10kb.txt
-0.0 0.5 tests/12kb.txt
-0.0 0.5 tests/16kb.txt
-0.0 0.5 tests/32kb.txt
-0.0 0.5 tests/64kb.txt
-0.0 0.5 tests/128kb.txt
+0.0 0.5 tests/In/files/10kb.txt
+0.0 0.5 tests/In/files/12kb.txt
+0.0 0.5 tests/In/files/16kb.txt
+0.0 0.5 tests/In/files/32kb.txt
+0.0 0.5 tests/In/files/64kb.txt
+0.0 0.5 tests/In/files/128kb.txt
 
 1 thread
 6 total files
@@ -19,13 +19,15 @@ Expected result:
 SJF:
 If the multiple files come in to the queue, we will expected them sort by the
 size of the file. Sometimes they will finish too soon before another file join
-in the queue.
+in the queue. The same intial time results in no intial misorder, just size ordered 1 2 3 4 5 6.
 
 RR:
 Large files have to be processed in size quantum of 8KB. Files that arrive
 early start to process, later file can join and each of them take the turn.
+The round robin will passed all the files through atleast twice, but order of size may change as 1 2 and 3 are same initial time and number of dequeues. (1|2|3) 4 5 6
 
 MLFB:
 Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
 of completion of the process depends on the processing time and arrival time of
-each file.
+each file. The fact that file 1 is larger than 8 kb will result in the order 
+being very similar to RR, but the arrival could make the intial (1|2|3|4|5) 6

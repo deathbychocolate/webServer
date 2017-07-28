@@ -1,0 +1,31 @@
+Test.6
+38080
+
+0 1 tests/In/files/128kb.txt
+0 2 tests/In/files/128kb.txt
+0 3 tests/In/files/128kb.txt
+1 0 tests/In/files/128kb.txt
+2 0 tests/In/files/128kb.txt
+3 0 tests/In/files/128kb.txt
+
+8 threads
+6 total files
+All 128kb
+
+Group Number:5
+Purpose: Test 9 is to test 6 files of same size in 8 thread orientation
+How it works: By inputing all 6 files aa pairs of 3 separate initial and 3 seperate decay time, setting threads to 8 on input Results in order by time without size affecting it.
+
+Expected result: 1 2 3 4 5 6
+By initial time only this is the expected results, with same sizes SJF will be same a RR.
+
+SJF:
+If the multiple files come in to the queue, we will expected them not to sort. The delay will not affect the SJF order of 1 2 3 4 5 6.
+
+RR:
+Large files have to be processed in size quantum of 8KB. Files that arrive
+early start to process 1 2 3 then move to end of the queue. Files may have the results that change based on the speed of 8kb process. This is because all files are same size, but the delay amount may affect it.
+
+MLFB:
+Files first join the 8KB queue, and 64KB queue and finally Round Robin. iles that arrive
+early start to process 1 2 3 then move to the 64 KB quantum, files will not have the results that change based on the speed of 8kb and 64kb process. This is because all files are same size, but the delay amount may affect it.

@@ -1,0 +1,32 @@
+Test.3
+
+0.1 0.1 tests/8kb.txt
+0 0.2 tests/16kb.txt
+0 0.2 tests/24kb.txt
+1.5 0.5 tests/32kb.txt
+0.2 0 tests/64kb.txt
+0 0.2 tests/128kb.txt
+
+8 threads
+6 total files
+
+Group Number:5
+Purpose: Test 3 is to test 6 files of increasing size in 8 thread orientation
+How it works: By inputing all 6 files at the variable initial and decay time and increasing size setting threads to 8 on input like test 2 but will larger file size.
+Expected result: 1 2 3 4 5 6 Size should take prioirity to small differences in intial time.
+
+SJF:
+If the multiple files come in to the queue, we will expected them sort by the
+size of the file. Sometimes they will finish too soon before another file join
+in the queue. Size ordered with small files of 2 1 3 4 5 6 as 2 3 and 6 arrive at 0.
+One will become the intial follow by order of size.
+
+RR:
+Large files have to be processed in size quantum of 8KB. Files that arrive
+early start to process, later file can join and each of them take the turn. This will just be time of arrival, 2 3 6 1 4 3
+
+MLFB:
+Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
+of completion of the process depends on the processing time and arrival time of
+each file. The increasing size of the files will result is a near size oriented order like SJF. 
+But the 64KB queue allows 5 to finish before 4 1 2 3 5 4 6

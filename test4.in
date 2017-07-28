@@ -1,8 +1,7 @@
 38080
-
-0.1 0 tests/8kb.txt
-0.2 0 tests/16kb.txt
-0.3 0 tests/24kb.txt
-0.4 0 tests/32kb.txt
-0.5 0 tests/64kb.txt
+0.1 0.0 tests/8kb.txt
+0.2 0.0 tests/16kb.txt
+0.3 0.0 tests/24kb.txt
+0.4 0.0 tests/32kb.txt
+0.5 0.0 tests/64kb.txt
 

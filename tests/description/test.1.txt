@@ -1,21 +1,22 @@
 Test.1
 
-38080
+Group Number:5
 
+<<<<<<< HEAD:tests/description/test.1.txt
 0.0 0.5 tests/In/files/10kb.txt
 0.0 0.5 tests/In/files/12kb.txt
 0.0 0.5 tests/In/files/16kb.txt
 0.0 0.5 tests/In/files/32kb.txt
 0.0 0.5 tests/In/files/64kb.txt
 0.0 0.5 tests/In/files/128kb.txt
-
-1 thread
-6 total files
-
-Group Number:5
+=======
 Purpose: Test 1 is to test 6 files of increasing size in 1 thread orientation
-How it works: By inputing all 6 files at the same initial and decay time 0.5, setting threads to 1 on input.
+>>>>>>> e3a8d0682bd213db8363d31b4685c2a671725ca2:description/test.1.txt
+
+How it works: By inputing all 6 files at the same initial and delay time 0.5, setting threads to 1 on input.
+
 Expected result:
+
 SJF:
 If the multiple files come in to the queue, we will expected them sort by the
 size of the file. Sometimes they will finish too soon before another file join
@@ -29,5 +30,14 @@ The round robin will passed all the files through atleast twice, but order of si
 MLFB:
 Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
 of completion of the process depends on the processing time and arrival time of
+<<<<<<< HEAD:tests/description/test.1.txt
 each file. The fact that file 1 is larger than 8 kb will result in the order 
 being very similar to RR, but the arrival could make the intial (1|2|3|4|5) 6
+=======
+each file.
+
+1 thread
+6 total files
+
+
+>>>>>>> e3a8d0682bd213db8363d31b4685c2a671725ca2:description/test.1.txt

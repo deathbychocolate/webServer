@@ -1,3 +1,4 @@
+<<<<<<< HEAD:tests/description/test.4.txt
 Test.4
 
 0.1 0 tests/In/files/1kb.txt
@@ -5,15 +6,24 @@ Test.4
 0.3 0 tests/In/files/1kb.txt
 0.4 0 tests/In/files/9kb.txt
 0.5 0 tests/In/files/1kb.txt
+=======
+>>>>>>> e3a8d0682bd213db8363d31b4685c2a671725ca2:description/test.4.txt
 
-8 threads
-5 total files
+Test.4
 
 Group Number:5
+
 Purpose: Test 4 is to test 5 files of varying size in 8 thread orientation
+<<<<<<< HEAD:tests/description/test.4.txt
 How it works: By inputing all 5 files at the same decay time, increasing initail time by 0.1 setting threads to 8 on input.
 Expected result: 1 2 3 4 5
 
+=======
+
+How it works: By inputing all 5 files at the same decay time, increasing initial time setting threads to 8 on input.
+
+Expected result:
+>>>>>>> e3a8d0682bd213db8363d31b4685c2a671725ca2:description/test.4.txt
 SJF:
 If the multiple files come in to the queue, we will expected them sort by the
 size of the file. Sometimes they will finish too soon before another file join
@@ -28,5 +38,22 @@ This depending on how fast will likely be 1 3 5 2 4
 MLFB:
 Files first join the 8KB queue, and 64KB queue and finally Round Robin. The order
 of completion of the process depends on the processing time and arrival time of
+<<<<<<< HEAD:tests/description/test.4.txt
 each file. The 64KB queue is never surpassed so the result is 1 3 5 2 4 with 2 
 and 4 waiting for 3 and 5 to finish.
+=======
+each file.
+
+
+file:
+38080
+0.1 0.0 tests/8kb.txt
+0.2 0.0 tests/16kb.txt
+0.3 0.0 tests/24kb.txt
+0.4 0.0 tests/32kb.txt
+0.5 0.0 tests/64kb.txt
+
+setup:
+8 threads
+5 total files
+>>>>>>> e3a8d0682bd213db8363d31b4685c2a671725ca2:description/test.4.txt

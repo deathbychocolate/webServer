@@ -168,3 +168,8 @@ testm5:
 zip:
 	rm -f sws.zip
 	zip sws.zip network.c network.h makefile
+
+convert:
+	./mv tests/Out/test.[1-10].M.txt tests/Out/test.[1-10].M.out &
+	./mv tests/Out/test.[1-10].S.txt tests/Out/test.[1-10].S.out &
+	./mv tests/Out/test.[1-10].R.txt tests/Out/test.[1-10].R.out

@@ -19,21 +19,23 @@ struct RCB
     FILE *fptr;                           /* Requested File Handle            */
     long remainbytes;                     /* Number of remaining bytes        */
     long quantum;                         /* Current quantum                  */
+    char path[FILENAME_MAX];              /* path of requested file           */
+    long sent;                            /* last amount of bytes sent        */
+    struct RCB *next;                     /* Next RCB in the scheduler        */
 };
 
 /* Scheduler Type */
 enum scheduler_type {SJF,RR,MLFQ,BAD_SCHEDULER};
 
-/* Queue structure */
-struct Queue
-{
-    struct RCB *request;
-    struct Queue *next;
-    pthread_mutex_t lock;     /* Mutex lock to prevent race condition       */
-    pthread_cond_t check;     /* Communicate queue availability b/w threads */
-};
-
 /* External variables */
 extern enum scheduler_type scheduler;
+
+
+/* worker thread queue structure */
+struct work_queue
+{
+    struct RCB *head;
+    struct RCB *tail;
+};
 
 #endif

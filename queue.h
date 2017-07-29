@@ -1,23 +1,15 @@
-//queue.h
+//
+//  queue.h
+//  WebServer
+//
+//  Created by dahmi majid on 2017-07-28.
+//  Copyright © 2017 Operating Systems. All rights reserved.
+//
 
-#ifndef QUEUE_H
-#define QUEUE_H
+#ifndef queue_h
+#define queue_h
 
-typedef struct reqInfo
-{
-    long int fileSize;
-} reqInfo;
-
-typedef struct node
-{
-    struct node *next;
-    reqInfo *ri;
-} node;
-
-static node *head;
-
-int addJob(reqInfo ri);
-reqInfo* getJob();
-
-
-#endif
+/* Worker queue entry points */
+extern void enqueue( struct work_queue *q, struct RCB *req );
+extern struct RCB *dequeue( struct work_queue *q, int wait);
+#endif /* queue_h */

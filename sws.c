@@ -1,3 +1,4 @@
+
 /*
  * File: sws.c
  * Author: Alex Brodsky
@@ -7,15 +8,30 @@
  *          processes each client request.
  */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include "network.h"
 #include "sws.h"
 #include "scheduler.h"
+#include "queue.h"
+
+int sequence_number;                        /* Global sequence number */
+enum scheduler_type scheduler;              /* Scheduler type */
+struct work_queue *queue;                   /* Thread work queue */
+
+/* Mutual exclusion locks */
+pthread_mutex_t lock_rcb = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_client = PTHREAD_MUTEX_INITIALIZER;
+
+/* Condition monitor */
+pthread_cond_t cond_rcb  = PTHREAD_COND_INITIALIZER;
+
+/* Counter to ensure maximum RCBs do not exceed MAX_REQS (defined as 100) */
+int req_tbl_cntr;
 
 
 /* -------------------------------------------------------------------------- *
@@ -27,30 +43,9 @@
  *             fd : the file descriptor to the client connection
  * Returns: None
  * -------------------------------------------------------------------------- */
-pthread_mutex_t mutex;
-int sequence_number;
-enum scheduler_type scheduler;
-sem_t sem;
 
-void safe_enqueue(struct RCB *new, int admit)
+static void serve_client( struct RCB *request )
 {
-    pthread_mutex_lock(&mutex);
-    if (admit == 1) admit_scheduler(new);
-    else resubmit_scheduler(new);
-    pthread_mutex_unlock(&mutex);
-}
-struct RCB *safe_dequeue()
-{
-    pthread_mutex_lock(&mutex);
-    struct RCB *new = get_next_scheduler();
-    pthread_mutex_unlock(&mutex);
-    return new;
-}
-
-
-static void serve_client( int fd )
-{
-    //pthread_mutex_lock(&mutex);
     static char *buffer;                            /* Request buffer         */
     char *req = NULL;                               /* ptr to req file        */
     char *brk;                                      /* state used by strtok   */
@@ -58,8 +53,8 @@ static void serve_client( int fd )
     FILE *fin;                                      /* input file handle      */
     int len;                                        /* length of data read    */
     long int fileSize;                              /* Size of requested file */
-    struct RCB *request;                            /* Request control block  */
-
+    
+    pthread_mutex_lock(&lock_client);               /* Lock client            */
     /* 1st time, alloc buffer */
     if ( !buffer )
     {
@@ -71,10 +66,10 @@ static void serve_client( int fd )
             abort();
         }
     }
-
-
     memset( buffer, 0, MAX_HTTP_SIZE );
-    if ( read( fd, buffer, MAX_HTTP_SIZE ) <= 0 )    /* read req from client  */
+    
+    /* read req from client  */
+    if ( read( request->fd, buffer, MAX_HTTP_SIZE ) <= 0 )
     {
         perror( "Error while reading request" );
         abort();
@@ -86,14 +81,12 @@ static void serve_client( int fd )
      */
     tmp = strtok_r( buffer, " ", &brk );              /* parse request */
     if ( tmp && !strcmp( "GET", tmp ) )
-    {
         req = strtok_r( NULL, " ", &brk );
-    }
 
     if ( !req )                                       /* is req valid? */
     {
         len = sprintf( buffer, "HTTP/1.1 400 Bad request\n\n" );
-        write( fd, buffer, len );                     /* if not, send err */
+        write( request->fd, buffer, len );            /* if not, send err */
     }
     else                                              /* if so, open file */
     {
@@ -103,25 +96,23 @@ static void serve_client( int fd )
         if ( !fin )                                    /* check if successful */
         {
             len = sprintf( buffer, "HTTP/1.1 404 File not found\n\n" );
-            write( fd, buffer, len );                  /* if not, send err    */
+            write( request->fd, buffer, len );         /* if not, send err    */
         }
         else                                           /* if so, send file    */
         {
             /* send success code */
+            strncpy( request->path, req, FILENAME_MAX);/* Get file name       */
+            
             len = sprintf( buffer, "HTTP/1.1 200 OK\n\n" );
-            write( fd, buffer, len );
-            request = malloc(sizeof(struct RCB));     /* Create RCB           */
-            request->fd = fd;                         /* Client ID            */
+            write( request->fd, buffer, len );
             request->fptr = fin;                      /* Requested File       */
             fseek(fin, 0, SEEK_END);
-            fileSize = ftell(fin);
+            fileSize = ftell(fin);                    /* Get file size        */
             fseek(fin, 0, SEEK_SET);
-            printf("The file size is: %ld bytes", fileSize);
             request->remainbytes = fileSize;          /* initially = filesize */
-            request->seq = sequence_number++;         /* Request Sequence     */
             switch (scheduler)
             {
-            /* SJF --> send entire file */
+            /*   SJF --> send entire file */
             case SJF:
                 request->quantum = fileSize;
                 break;
@@ -132,31 +123,32 @@ static void serve_client( int fd )
                 request->quantum = HIGH_PRIORITY_QUANTUM;
                 break;
             }
-            safe_enqueue(request, 1);
-            //admit_scheduler(request);
         }
     }
+    pthread_mutex_unlock(&lock_client);               /* Unlock client        */
 }
 
 /* -------------------------------------------------------------------------- *
- * Purpose: Serve a single request from the queue. Resubmit to queue if needed.
- *
+ * Purpose: Serve a single request from the queue until its quantum is processed
+ *              or until the the file is done. whichever is first.
  * Parameters: none
- * Returns: integer denoting if the queue is empty or not,
+ * Returns: integer denoting if request needs resubmission
  * -------------------------------------------------------------------------- */
-int serve_request()
+int serve_request(struct RCB *req)
 {
     long len;                                    /* length of segment         */
     static char *buffer;                         /* Request buffer            */
-    struct RCB *req = safe_dequeue();
-    //struct RCB *req = get_next_scheduler();      /* Get next request          */
-    if (req == NULL)                             /* IF no request are pending */
-        return FALSE;                            /* */
+    if (req == NULL)                             /* req does not need resub   */
+        return FALSE;                            /* return if RCB is not found*/
     long left = req->remainbytes;                /* bytes left to send        */
     long quantum = req->quantum;                 /* bytes per each serve      */
-
-    /* Queue is empty */
-
+    
+    /* Check if file size is larger than allowed quantum */
+    if (left > quantum)
+        req -> sent = quantum;                   /* Bytes sent is the quantum */
+    else
+        req -> sent = left;                      /* all remaining bytes sent  */
+    
     /* 1st time, alloc buffer */
     if ( !buffer )
     {
@@ -170,9 +162,11 @@ int serve_request()
     }
     memset( buffer, 0, MAX_HTTP_SIZE );
 
+    /* loop while sending chunks of 8KB each to client up until quantum limit 
+       or until the request is complete whichever comes first */
     do
     {
-        if ( left > MAX_HTTP_SIZE)
+        if ( left > MAX_HTTP_SIZE)         /* If what is left is less than 8KB*/
             left = MAX_HTTP_SIZE;
         len = fread( buffer, 1, left, req->fptr );         /* read file chunk */
         if ( len < 0 )                                     /* check for errors*/
@@ -182,96 +176,96 @@ int serve_request()
         else if ( len > 0 )                                /* if none,send req*/
         {
             len = write( req->fd, buffer, len );
-            printf("%s", buffer);
             fflush(stdout);
             if ( len < 1 )                                 /* check for errors*/
             {
                 perror( "Error while writing to client" );
             }
-            req->remainbytes -= left;
-            quantum -= left;
-            if (scheduler == SJF && quantum > 0)
+            req->remainbytes -= left;             /* Remaining bytes updated  */
+            quantum -= left;                      /* Remaining quantum updated*/
+            
+            /* If quantum is larger than 8KB, ensure quantum is fully written */
+            if ((scheduler == SJF || scheduler == MLFQ) && quantum > 0)
                 left = quantum;
         }
-
     }
     while (len == MAX_HTTP_SIZE && quantum > 0);
 
     /* IF request is fully serviced */
     if (req->remainbytes == 0)
-    {
-        fclose( req->fptr );                       /* Close requested file    */
-        close(req->fd);                            /* Close client descriptor */
-        free(req);
-    }
+        return FALSE;          /* Request completed. no resubmission required */
     else
-        safe_enqueue(req, 0);
-    //resubmit_scheduler(req);
-
-    return TRUE;               /* Assume queue not empty, recheck upon recall */
+        return TRUE;           /* request incomplete. resubmission is needed  */
 }
-
-/*
- * entry function for the threads
- */
-void *entry(void *rcb)
-{
-    for (;;)
-    {
-        if(!serve_request())
-        {
-            //suspends thread is queue is empty
-            sem_wait(&sem);
-        }
-    }
-}
-
 
 /* -------------------------------------------------------------------------- *
- * Purpose: initialize threads
- * Parameters:
- * Returns:
- * -----------------S--------------------------------------------------------- */
-void thread_init(int numThreads, int port)
-{
-    printf("Starting threads %d\n", numThreads);
-    int i;
-    pthread_t threads[numThreads];
-    for (i = 0; i < numThreads; i++)
+ * Purpose: worker thread function where all worker threads enter an infinite 
+ *              loop where the threads check the work queue for request to admit
+ *              to the scheduler as well as serving these requests. A thread 
+ *              sleeps only if worker and scheduler queue's are empty
+ * Parameters: none
+ * Returns: none
+ * -------------------------------------------------------------------------- */
+static void *worker_queue( void * arg ) {
+    struct RCB *req;
+    int wait = 1;
+    int status = 0;
+    while (1)                                      /* Infinite thread loop    */
     {
-        pthread_create(&threads[i], NULL, entry, NULL);
-    }
-    get_reqs(port);
-    for (i = 0; i < numThreads; i++)
-    {
-        pthread_join(threads[i], NULL);
-    }
-}
-
-
-/*
- * waits for requests, then schedules them
- */
-int get_reqs(int port)
-{
-    int fd;
-    sequence_number = 1;
-    network_init( port );                              // init network module
-
-    for ( ;; )                                         // infinite main loop
-    {   
-        network_wait();                                // wait for clients
-
-        while ((fd = network_open()) >= 0)
+        req = dequeue(queue, wait);                /* Aquire from work queue  */
+        if( req )
         {
-            if (fd >= 0)
+            serve_client( req );                       /* process client req  */
+            if (req ->fptr !=NULL)                     /* IF file found       */
             {
-                serve_client( fd );                    // process each client
-                sem_post(&sem);
+                safe_enqueue(req, 1);                  /* Admit to scheduler  */
+                printf( "Request for file %s admitted.\n", req->path );
+                fflush( stdout );
             }
-
-            //queue_status = serve_request();            // Process requests
+            else                                       /* ELSE file not found */
+            {
+                close( req->fd );                      /* Close connection    */
+                pthread_mutex_lock( &lock_rcb );       /* Lock RCB freeing    */
+                free(req);                             /* Free RCB            */
+                req_tbl_cntr--;                        /* Request table count */
+                pthread_cond_signal( &cond_rcb );      /* Signal main thread  */
+                pthread_mutex_unlock( &lock_rcb );     /* Unlock queue        */
+            }
         }
+        else    /* no RCB in work queue but present in scheduler queue */
+        {
+            req = safe_dequeue();                      /* Get RCB from queue  */
+            status = serve_request(req);               /* Serve client request*/
+            
+            /* IF request is present and RCB needs resubmission to scheduler  */
+            if( req && status )
+            {
+                printf( "Sent %ld bytes of file %s.\n", req->sent, req->path );
+                fflush( stdout );
+                safe_enqueue(req,0);                   /* Resubmit request    */
+            }
+            else if( req )                             /* Else Req completed  */
+            {
+                printf( "Sent %ld bytes of file %s.\n", req->sent, req->path );
+                printf( "Request for file %s completed.\n", req->path );
+                fflush( stdout );
+                close( req->fd );                      /* Close connection    */
+                fclose(req->fptr);                     /* Close client file   */
+                
+                /* Free RCB */
+                pthread_mutex_lock( &lock_rcb );
+                free(req);
+                req_tbl_cntr--;
+                pthread_cond_signal( &cond_rcb );
+                pthread_mutex_unlock( &lock_rcb );
+            }
+        }
+        /* If request is done, suspend thread if work queue empty*/
+        if (req == NULL)
+            wait = 1;
+        /* Else thread does not suspend in order to continue serving RCB */
+        else
+            wait = 0;
     }
 }
 
@@ -288,18 +282,17 @@ int get_reqs(int port)
  * -------------------------------------------------------------------------- */
 int main( int argc, char **argv )
 {
-    int port;
-    int threads;                                       /* Server port #          */
-    //int fd;                                         /* Client file descriptor */
-    int queue_status = 0;                           /* Pending queue status   */
-
-    if ( argc < 4 )                                 /* Check for parameters   */
-    {
+    int port;                                       /* Server port #          */
+    int threads;                                    /* Number of threads      */
+    int fd;                                         /* Client file descriptor */
+    struct RCB *request;                            /* Client requests        */
+    
+    /* Check for parameters */
+    if ( argc < 4 || ( sscanf( argv[1], "%d", &port    ) < 1 )
+                  || ( sscanf( argv[3], "%d", &threads ) < 1 )) {
         printf( "usage: sws <port> <scheduler> <threads>\n" );
         return 0;
     }
-
-    sscanf( argv[1], "%d", &port );                 /* Get port number        */
 
     /* Check if port is within specified range */
     if (port < 1024 || port > 65535)
@@ -314,23 +307,46 @@ int main( int argc, char **argv )
         printf( "Unsupported Scheduler\n" );
         return 0;
     }
-    sscanf(argv[3], "%d", &threads);
-    thread_init(threads, port);                              /* Initialize threads  */
-    /*
-    sequence_number = 1;
-    network_init( port );                              // init network module
 
-    for ( ;; )                                         // infinite main loop
+    /* Check if number of threads is positive */
+    if (threads < 1)
     {
-        network_wait();                                // wait for clients
+        printf( "Number of threads has to be larger than 1\n" );
+        return 0;
+    }
+    
+    /* initialize the threads work queue */
+    queue = (struct work_queue*) malloc (sizeof(struct work_queue));
+    
+    /* Instantiate and start the specified number of worker threads */
+    pthread_t thread_array[threads];
+    for (int i = 0; i < threads; i++)
+    {
+        pthread_create(&thread_array[i], NULL, worker_queue, NULL);
+    }
+    
+    sequence_number = 1;                               /* Initialize seq num  */
+    network_init( port );                              /* init network module */
 
-        while ((fd = network_open()) >= 0 || queue_status)
+    for ( ;; )                                         /* infinite main loop  */
+    {
+        network_wait();                                /* wait for clients    */
+        
+        for( fd = network_open(); fd >= 0; fd = network_open() )
         {
-            if (fd >= 0)
-                serve_client( fd );                    // process each client
-
-            queue_status = serve_request();            // Process requests
+            pthread_mutex_lock( &lock_rcb );          /* lock RCB allocation  */
+            
+            /* Check if max num of req exceeded */
+            if( req_tbl_cntr > MAX_REQ )
+                pthread_cond_wait( &cond_rcb, &lock_rcb ); /* Wait if exceeded*/
+            
+            req_tbl_cntr++;                           /* Increment RCB counter*/
+            request = malloc(sizeof(struct RCB));     /* Allocate RCB         */
+            request->seq = sequence_number++;         /* Request Sequence     */
+            request->fd = fd;                         /* Client ID            */
+            pthread_mutex_unlock( &lock_rcb );        /* Unlock RCB allocation*/
+            enqueue(queue, request);                  /* Insert in work queue */
         }
     }
-    */
+    
 }

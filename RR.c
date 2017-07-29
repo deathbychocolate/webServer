@@ -12,20 +12,19 @@
 #include "scheduler.h"
 
 
-struct Queue *head_RR;
-struct Queue *tail_RR;
+struct RCB *head_RR;
+struct RCB *tail_RR;
 
 
 /* -------------------------------------------------------------------------- *
  * Purpose: admit to the end of the RR queue
  * Parameters:
+ *              req: Request control block used by scheduler
  * Returns:
  * -------------------------------------------------------------------------- */
 void admit_RR(struct RCB *req)
 {
-    struct Queue *entry;
-    entry = (struct Queue*)malloc(sizeof(struct Queue));
-    entry -> request = req;
+    struct RCB *entry = req;
     /*If queue is empty */
     if ( head_RR == NULL)
     {
@@ -42,19 +41,20 @@ void admit_RR(struct RCB *req)
 }
 
 /* -------------------------------------------------------------------------- *
- * Purpose: aquire and remove the next request from the queue
+ * Purpose: aquire and remove the next request from the queue or NULL if not 
+ *              scheduler is empty
  * Parameters:
- * Returns:
+ * Returns: Request control block acquired from scheduler
  * -------------------------------------------------------------------------- */
 struct RCB *get_RR ()
 {
-    struct Queue *entry = head_RR;
+    struct RCB *entry = head_RR;
     /* If queue is not empty*/
     if (head_RR)
     {
         /* acquire head of the queue */
         head_RR = head_RR -> next;
-        return entry->request;
+        return entry;
     }
     else
         return NULL;
